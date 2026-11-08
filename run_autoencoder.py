@@ -34,13 +34,7 @@ def build_autoencoder(input_dim, bottleneck_dim):
 
 
 def load_fingerprints(input_folder, method):
-    """
-    Végigmegy input_folder összes fájlján (a hardcode-olt datasets_name
-    lista helyett), és a fájlnévből képzi a 'Dataset' oszlop értékét --
-    a kiterjesztés ÉS a '_{method}' utótag levágásával, hogy pl.
-    'machine-1-1_MultiRocket.csv' -> 'machine-1-1' legyen, ne
-    'machine-1-1_MultiRocket'.
-    """
+
     all_data_combined = pd.DataFrame()
 
     filenames = sorted(os.listdir(input_folder))
@@ -61,9 +55,6 @@ def load_fingerprints(input_folder, method):
         data = pd.read_csv(file_path)
 
         if data.shape[0] == 0:
-            # Valószínűleg nincs fejléc sor a fájlban -- az egyetlen
-            # adat-sort (a fingerprint vektort) fejlécként értelmezte
-            # a pandas. Újraolvassuk header nélkül.
             data = pd.read_csv(file_path, header=None)
             data.columns = [f'feature_{i}' for i in range(data.shape[1])]
 
@@ -100,7 +91,7 @@ if __name__ == "__main__":
 
     all_data_combined = load_fingerprints(input_folder, method)
     print('===========================================================')
-    print(all_data_combined.isna().sum().sum())  # ha >0, ez megerősíti a gyanút
+    print(all_data_combined.isna().sum().sum())
     print(all_data_combined.shape)
 
     if all_data_combined.empty:

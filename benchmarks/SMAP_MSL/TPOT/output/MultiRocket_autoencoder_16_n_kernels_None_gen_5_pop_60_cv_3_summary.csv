@@ -1,2 +1,0 @@
-File,Accuracy,BalancedAccuracy,TopKAccuracy,TopK,Duration
-MultiRocket_autoencoder_16_labeled.csv,0.72,0.5,1.0,3,185.42075753211975

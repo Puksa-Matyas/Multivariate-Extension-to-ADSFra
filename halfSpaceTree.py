@@ -10,18 +10,7 @@ import numpy as np
 
 def AnomalyDetect_HST(data, train_length, n_trees=25, height=15, window_size=250, seed=42,
                       process=None, peak_memory=0, mem_check_every=500):
-    """
-    River HalfSpaceTrees-alapu anomalia-detekcio.
 
-    A train_length hosszu szakaszon epitjuk fel a modellt (learn_one),
-    utana a teszt szakaszon statikusan pontozunk (score_one), tovabbi tanulas nelkul.
-    Ez ugyanaz a "batch tanitas, statikus teszt" protokoll, amit a tobbi detektor
-    (MDRS, SPE, MDSW) is alapertelmezetten hasznal (online=False), igy az eredmenyek
-    osszehasonlithatok maradnak.
-
-    Ha process meg van adva, a futas kozben mintavetelezve (mem_check_every lepesenkent)
-    merjuk a RAM-hasznalatot, es visszaadjuk a peak erteket (bajtban).
-    """
     T1 = data.shape[0]
     Ni = data.shape[1]
 
@@ -35,7 +24,6 @@ def AnomalyDetect_HST(data, train_length, n_trees=25, height=15, window_size=250
     score = np.zeros(T1)
 
     for n in range(T1):
-        # river dict-alapu bemenetet var: csatornankent egy kulcs-ertek par
         x = {f'ch_{i}': float(data[n, i]) for i in range(Ni)}
 
         if n < train_length:
@@ -86,7 +74,6 @@ if __name__ == "__main__":
     for filename in filename_list:
         print(filename)
 
-        # Futasido- es memoriameres indul (adatbetoltessel egyutt, mint a TranAD-nal)
         dataset_start = time()
         memory_start = process.memory_info().rss
         peak_memory = memory_start
@@ -105,8 +92,6 @@ if __name__ == "__main__":
         train_length = data_train.shape[0]
         peak_memory = max(peak_memory, process.memory_info().rss)
 
-        ## Normalize by column (by channel). A HST-nek nincs szuksege a reservoir-specifikus
-        ## (2.0*+2.0 / Ni) skalazasra, a sima [0,1] normalizalas eleg neki.
         channel_min = np.min(data, axis=0)
         channel_max = np.max(data, axis=0)
         normalized_data = (data - channel_min) / (channel_max - channel_min + 1e-10)

@@ -6,11 +6,7 @@ import statistics as stats
 import time
 import warnings
 
-# Elnémítja a zajos, ismétlődő figyelmeztetéseket (pkg_resources
-# deprecation, generations/max_time_mins ütközés) -- ezek minden
-# seednél, sőt a TPOT n_jobs=16 miatt minden worker processznél
-# újra megjelennek, ezért ez a beállítás a PYTHONWARNINGS környezeti
-# változón keresztül a gyerek-processzekre is átöröklődik.
+
 warnings.filterwarnings('ignore', message='.*pkg_resources is deprecated.*')
 warnings.filterwarnings('ignore', message='.*Both generations and max_time_mins.*')
 os.environ.setdefault('PYTHONWARNINGS', 'ignore::UserWarning')
@@ -22,11 +18,6 @@ from sklearn.model_selection import train_test_split
 from tpot import TPOTClassifier
 
 SPLITS = ['SMD', 'SMAP', 'MSL', 'SMAP_MSL']
-# FONTOS: ennek a listának -- sorrendben is! -- meg kell egyeznie a
-# pairDetector.py-ban lévő `algorithms` listával, mert a target-kódolás
-# (0,1,2,3,...) onnan származik. Ha új detektort adsz hozzá, mindkét
-# helyen frissítened kell, ugyanabban a sorrendben, különben a
-# True_Detector/Predicted_Detector nevek rossz detektorra mutatnak.
 ALGORITHMS = ['RZS','SPE','HST','TRAKR','TranAD']
 DEFAULT_SEED = 50
 DEFAULT_TEST_SIZE = 0.20
@@ -36,8 +27,6 @@ TOPK_COL_PATTERN = re.compile(r'^Top(\d+)Targets$')
 
 
 def find_topk_column(columns):
-    """Megkeresi a pairDetector.py által előállított 'Top{k}Targets' oszlopot
-    (pl. 'Top3Targets'), és visszaadja az oszlop nevét és a k értékét."""
     for c in columns:
         m = TOPK_COL_PATTERN.match(c)
         if m:
@@ -53,28 +42,14 @@ def append_result_row(path, row):
 
 def run_tpot_on_file(data_file_path, output_dir, generations, population_size, cv,
                       random_state=DEFAULT_SEED, test_size=DEFAULT_TEST_SIZE, quiet=False):
-    """Egyetlen train/test split lefuttatása egy adott random_state-tel.
-    A random_state egyszerre vezérli a splitet ÉS a TPOT belső keresését,
-    mert amikor több seeddel futtatod (lásd run_multi_seed), mindkettő
-    egyszerre kell hogy változzon -- különben nem tudod szétválasztani,
-    hogy a split vagy a keresés véletlenje okozza az ingadozást.
-    """
     if not quiet:
         print(f"\n=== Processing {data_file_path}  (seed={random_state}) ===")
     data = pd.read_csv(data_file_path)
     data = data.drop(columns=[c for c in ['Unnamed: 0'] if c in data.columns])
 
-    # Dataset nevek eltárolása a dobás előtt, hogy a predikciós
-    # táblában vissza tudjuk csatolni, melyik sor melyik dataset-hez tartozik.
     dataset_names = data['Dataset'] if 'Dataset' in data.columns else None
     data = data.drop(columns=[c for c in ['Dataset'] if c in data.columns])
 
-    # A pairDetector.py 'Top{k}Targets' oszlopa datasetenként a top-k
-    # legjobban teljesítő detektor indexét tárolja, teljesítmény szerint
-    # csökkenő sorrendben (pl. "1,3,0" = MDRS a legjobb, TRAKR a
-    # második, HST a harmadik). Ezt eltesszük, hogy a predikció után
-    # meg tudjuk mondani: a modell legalább a top-k közé eltalált-e,
-    # nem csak azt, hogy pontosan a legjobbat találta-e el.
     topk_col, topk_k = find_topk_column(data.columns)
     topk_series = data[topk_col] if topk_col else None
 
@@ -116,9 +91,6 @@ def run_tpot_on_file(data_file_path, output_dir, generations, population_size, c
     label_map = {i: name for i, name in enumerate(ALGORITHMS)}
     predictions_df = pd.DataFrame({'True_Label': y_test, 'Predicted_Label': y_pred}, index=X_test.index)
 
-    # A dataset nevet a megmaradt (dropna/train_test_split utáni) index
-    # alapján csatoljuk vissza -- így a kimenetben nem egy tetszőleges
-    # pandas sorindex, hanem a tényleges dataset neve látszik.
     if dataset_names is not None:
         predictions_df.insert(0, 'Dataset', dataset_names.loc[predictions_df.index])
 
@@ -174,13 +146,6 @@ def run_tpot_on_file(data_file_path, output_dir, generations, population_size, c
 
 
 def run_multi_seed(data_file_path, output_dir, generations, population_size, cv, seeds, test_size):
-    """Ugyanazt a konfigurációt N különböző seeddel futtatja le (más split
-    ÉS más TPOT-keresés minden seednél), és összegyűjti az eredményeket.
-    Ez teszi lehetővé, hogy ne egyetlen (esetleg szerencsés vagy
-    szerencsétlen) split alapján hasonlíts össze hiperparaméter-
-    kombinációkat, hanem az átlagos (és a szórás által jelzett
-    megbízhatóságú) teljesítmény alapján.
-    """
     all_results = []
     for i, seed in enumerate(seeds, start=1):
         print(f"\n########## Seed {seed}  ({i}/{len(seeds)}) ##########")
@@ -195,8 +160,6 @@ def run_multi_seed(data_file_path, output_dir, generations, population_size, cv,
 
 
 def summarize_results(all_results):
-    """Átlag és szórás minden metrikára a több seedes futásból. Egyetlen
-    seednél a szórás 0.0 (nincs mit szórni egy pontból)."""
     summary = {}
     for key in ['Accuracy', 'BalancedAccuracy', 'TopKAccuracy', 'Duration']:
         vals = [r[key] for r in all_results if r.get(key) is not None]
@@ -226,13 +189,8 @@ if __name__ == "__main__":
     parser.add_argument('--n_kernels', type=int, default=None)
     parser.add_argument('--test_size', type=float, default=DEFAULT_TEST_SIZE)
     parser.add_argument('--results_csv', type=str, default=DEFAULT_RESULTS_CSV)
-    # Több-seedes futtatás. Vagy add meg konkrétan a seedeket
-    # (--seeds 30 1 7 123 2024), vagy csak a darabszámukat
-    # (--n_seeds 10 -> seedek: 30, 31, 32, ..., 39).
-    parser.add_argument('--seeds', type=int, nargs='+', default=None,
-                         help='Konkrét seed-lista, pl. --seeds 30 1 7 123')
-    parser.add_argument('--n_seeds', type=int, default=1,
-                         help='Ha --seeds nincs megadva, ennyi egymást követő seedet generál DEFAULT_SEED-től.')
+    parser.add_argument('--seeds', type=int, nargs='+', default=None,help='Konkrét seed-lista, pl. --seeds 30 1 7 123')
+    parser.add_argument('--n_seeds', type=int, default=1, help='Ha --seeds nincs megadva, ennyi egymást követő seedet generál DEFAULT_SEED-től.')
     args = parser.parse_args()
 
     DATA_DIR = f'benchmarks/{args.benchmark}/TPOT'
@@ -262,8 +220,6 @@ if __name__ == "__main__":
         seeds, args.test_size,
     )
 
-    # Minden seed eredménye egy-egy sorként a results_csv-be -- így
-    # később is visszakereshető, melyik seed milyen eredményt adott.
     for result in all_results:
         append_result_row(args.results_csv, {
             'Timestamp': datetime.datetime.now().isoformat(timespec='seconds'),
@@ -295,10 +251,6 @@ if __name__ == "__main__":
         print(f"Top-{summary['TopK']} accuracy:      {summary['TopKAccuracy_Mean']:.4f} ± {summary['TopKAccuracy_Std']:.4f}")
     print(f"Átlagos futásidő:  {summary['Duration_Mean']:.1f}s ± {summary['Duration_Std']:.1f}s")
 
-    # Az összesítő sort -- ami majd a hiperparaméter-kombinációk közti
-    # döntéshez kell -- külön jelölve tesszük be ugyanabba a CSV-be
-    # ('Seed'='SUMMARY'), hogy könnyen kiszűrhető legyen az egyedi
-    # seed-sorok közül (pl. df[df.Seed == 'SUMMARY']).
     append_result_row(args.results_csv, {
         'Timestamp': datetime.datetime.now().isoformat(timespec='seconds'),
         'Benchmark': args.benchmark,

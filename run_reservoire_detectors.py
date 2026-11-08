@@ -12,11 +12,7 @@ import psutil
 
 
 class PeakMemoryMonitor:
-    """
-    Hatterszal, ami interval masodpercenkent olvassa a folyamat RSS-et, es tarolja a maximumot.
-    Igy a rovid ideig tarto csucsok (pl. pinv/inv) is elkaphatok, anelkul hogy
-    a szamitasi ciklust modositani kellene.
-    """
+
     def __init__(self, process, interval=0.05):
         self.process = process
         self.interval = interval
@@ -317,7 +313,6 @@ if __name__ == "__main__":
     benchmark = args.benchmark
     method = args.method
 
-    # Csak ezeknel a modszereknel keszul futasido- es memoria-log
     MEASURE_METHODS = ['TRAKR', 'SPE']
     measure = method in MEASURE_METHODS
 
@@ -386,7 +381,6 @@ if __name__ == "__main__":
     for filename in filename_list:
         print(filename)
 
-        # Futasido- es memoriameres indul (adatbetoltessel egyutt, mint a TranAD-nal)
         dataset_start = time.time()
         if measure:
             mem_monitor = PeakMemoryMonitor(process)
@@ -402,8 +396,6 @@ if __name__ == "__main__":
             data_test = np.load(f'{folder_path}/test/{filename_npy}')
             anomaly_label = np.loadtxt(f'{folder_path}/test_label/{filename}')
 
-        # Kozos resz (SMD-re es SMAP/MSL-re egyarant): adat osszefuzese, param frissitese,
-        # es a ground truth anomalia-szakaszok hatarainak megkeresese (a plothoz)
         data = np.concatenate((data_train, data_test), axis=0)
         print('data shape:', data.shape)
 
@@ -466,7 +458,6 @@ if __name__ == "__main__":
         test_score = anomaly_score[reservoir.train_length:]
         np.savetxt(f'{result_path}/{filename}_{method}.txt', test_score)
 
-        # Futasido- es memoriameres vege (a plotolas mar nem resze a merésnek)
         if measure:
             peak_memory = mem_monitor.stop()
             dataset_time = time.time() - dataset_start

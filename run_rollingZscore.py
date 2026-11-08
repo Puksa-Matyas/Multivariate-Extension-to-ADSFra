@@ -8,12 +8,6 @@ import numpy as np
 
 
 def AnomalyDetect_RollingZscore(data, window_size=100, eps=1e-6, process=None, peak_memory=0):
-    """
-    Gorgo z-score alapu anomalia-detekcio.
-
-    Ha process meg van adva, a nagy atmeneti tombok letrehozasa utan merjuk a
-    RAM-hasznalatot, es visszaadjuk a peak erteket (bajtban).
-    """
     def _update_peak(peak):
         if process is not None:
             return max(peak, process.memory_info().rss)
@@ -40,7 +34,7 @@ def AnomalyDetect_RollingZscore(data, window_size=100, eps=1e-6, process=None, p
 
     z = (data - mean) / (std + eps)
     score = np.sum(z ** 2, axis=1)
-    score[:window_size] = 0.0  # meg nincs ervenyes gorgo statisztika
+    score[:window_size] = 0.0 
     peak_memory = _update_peak(peak_memory)
 
     return score, peak_memory
@@ -74,7 +68,6 @@ if __name__ == "__main__":
     for filename in filename_list:
         print(filename)
 
-        # Futasido- es memoriameres indul (adatbetoltessel egyutt, mint a TranAD-nal)
         dataset_start = time()
         memory_start = process.memory_info().rss
         peak_memory = memory_start
@@ -97,7 +90,7 @@ if __name__ == "__main__":
             data, window_size=args.window_size,
             process=process, peak_memory=peak_memory,
         )
-        anomaly_score[:train_length] = 0.0  # a train szakaszt itt is kihagyjuk, mint a tobbi detektornal
+        anomaly_score[:train_length] = 0.0
 
         filename_stem = os.path.splitext(filename)[0]
         test_score = anomaly_score[train_length:]

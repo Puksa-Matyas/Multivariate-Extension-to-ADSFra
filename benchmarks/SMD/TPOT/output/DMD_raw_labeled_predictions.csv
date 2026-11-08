@@ -1,7 +1,0 @@
-,True_Label,Predicted_Label,True_Detector,Predicted_Detector
-17,3,3,RZS,RZS
-10,0,3,HST,RZS
-13,2,2,MTAD,MTAD
-5,0,1,HST,MDRS
-12,1,3,MDRS,RZS
-15,0,3,HST,RZS

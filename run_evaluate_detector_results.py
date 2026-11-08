@@ -11,9 +11,6 @@ ANOMALY_WINDOW_MODE = 'NAB'
 NORMALIZE_METRICS = True
 
 
-# ============================================================
-# POINT-WISE / POINT-ADJUST
-# ============================================================
 
 def adjust_predicts(pred, label):
     """
